@@ -1,5 +1,5 @@
 //requiring the better-sqlite3 module
-const Database = require('better-sqlite3');
+import Database from 'better-sqlite3';
 
 const db = new Database('3284.db');
 
@@ -76,4 +76,4 @@ db.prepare(`
   )
 `).run();
 
-module.exports = db;
+export default db;

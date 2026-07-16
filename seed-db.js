@@ -1,4 +1,4 @@
-const db = require('./init-db');
+import db from './init-db.js';
 
 const insertCountry = db.prepare(`INSERT INTO countries (country, country_code) VALUES (?, ?)`);
 
@@ -172,7 +172,7 @@ const athleteSeasons = [
     {
         athleteId: 3,
         year: 2024,
-        sb60m: 6.39,
+        sb60m: null,
         sb100m: 9.97,
         sb200m: 19.9,
         sb400m: null
@@ -181,7 +181,7 @@ const athleteSeasons = [
     {
         athleteId: 4,
         year: 2024,
-        sb60m: 6.33,
+        sb60m: null,
         sb100m: 9.97,
         sb200m: 19.71,
         sb400m: null
@@ -190,9 +190,9 @@ const athleteSeasons = [
     {
         athleteId: 5,
         year: 2024,
-        sb60m: 6.34,
-        sb100m: 9.81,
-        sb200m: 19.69,
+        sb60m: null,
+        sb100m: 9.87,
+        sb200m: 19.57,
         sb400m: 46.00
     },
     // blake
@@ -384,14 +384,18 @@ const teamAthletesPrint = db.prepare(
   'SELECT * FROM team_athletes'
 ).all();
 
-console.log(`countriesPrint: ${JSON.stringify(countriesPrint)}`);
+const showContents = prompt("Would you like to see the contents of the database tables after seeding?");
 
-console.log(`athletesPrint: ${JSON.stringify(athletesPrint)}`);
+if (showContents === "yes") {
+    console.log(`countriesPrint: ${JSON.stringify(countriesPrint)}`);
+    
+    console.log(`athletesPrint: ${JSON.stringify(athletesPrint)}`);
 
-console.log(`athleteSeasonsPrint: ${JSON.stringify(athleteSeasonsPrint)}`);
+    console.log(`athleteSeasonsPrint: ${JSON.stringify(athleteSeasonsPrint)}`);
 
-console.log(`teamsPrint: ${JSON.stringify(teamsPrint)}`);
+    console.log(`teamsPrint: ${JSON.stringify(teamsPrint)}`);
 
-console.log(`teamPerformancesPrint: ${JSON.stringify(teamPerformancesPrint)}`);
+    console.log(`teamPerformancesPrint: ${JSON.stringify(teamPerformancesPrint)}`);
 
-console.log(`teamAthletesPrint: ${JSON.stringify(teamAthletesPrint)}`);
+    console.log(`teamAthletesPrint: ${JSON.stringify(teamAthletesPrint)}`);
+}
