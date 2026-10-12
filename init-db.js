@@ -39,6 +39,17 @@ db.prepare(`
 `).run();
 
 db.prepare(`
+  CREATE TABLE IF NOT EXISTS meets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    city TEXT NOT NULL,
+    type TEXT NOT NULL,
+    UNIQUE(name, year)
+  )
+`).run();
+
+db.prepare(`
   CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     country_id INTEGER NOT NULL,
@@ -53,26 +64,26 @@ db.prepare(`
   CREATE TABLE IF NOT EXISTS team_performance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     team_id INTEGER NOT NULL,
-    year INTEGER NOT NULL,
+    meet_id INTEGER NOT NULL,
     round TEXT NOT NULL,
     result REAL,
     status TEXT,
     FOREIGN KEY (team_id) REFERENCES teams(id),
-    UNIQUE(team_id, year, round)
+    FOREIGN KEY (meet_id) REFERENCES meets(id),
+    UNIQUE(team_id, meet_id, round)
   )
 `).run();
 
 db.prepare(`
   CREATE TABLE IF NOT EXISTS team_athletes (
-    team_id INTEGER NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     team_performance_id INTEGER NOT NULL,
     athlete_id INTEGER NOT NULL,
     leg INTEGER NOT NULL,
     FOREIGN KEY (athlete_id) REFERENCES athletes(id),
-    FOREIGN KEY (team_id) REFERENCES teams(id),
     FOREIGN KEY (team_performance_id) REFERENCES team_performance(id),
-    UNIQUE(team_id, team_performance_id, athlete_id),
-    UNIQUE(team_id, team_performance_id, leg)
+    UNIQUE(team_performance_id, athlete_id),
+    UNIQUE(team_performance_id, leg)
   )
 `).run();
 
