@@ -2,7 +2,8 @@
 
 import json
 import math
-from datetime import date
+from datetime import date, datetime, timezone
+from pathlib import Path
 
 import requests
 
@@ -12,7 +13,23 @@ EVENT_ID = 204593
 CUTOFF_DATE = "2012-08-09"
 
 
-def get_competition_results(competition_id, event_id):
+def save_raw_response(response, data, raw_results, output_path):
+    # Keep all successful responses together, keyed by their full request URL.
+    raw_results[response.url] = {
+        "url": response.url,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "data": data,
+    }
+    # Save after each response so earlier downloads survive an interrupted run.
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = output_path.with_suffix(".tmp")
+    with temporary_path.open("w", encoding="utf-8") as file:
+        json.dump(raw_results, file, indent=2, ensure_ascii=False)
+    temporary_path.replace(output_path)
+
+
+def get_competition_results(competition_id, event_id, raw_results, output_path):
     response = requests.get(
         f"{BASE_URL}/competitions/{competition_id}/results",
         params={"eventId": event_id},
@@ -20,10 +37,12 @@ def get_competition_results(competition_id, event_id):
     )
 
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    save_raw_response(response, data, raw_results, output_path)
+    return data
 
 
-def get_athlete_results(athlete_id, season=None):
+def get_athlete_results(athlete_id, raw_results, output_path, season=None):
     # Leave out season to request all years (also used for recovery)
     response = requests.get(
         f"{BASE_URL}/athletes/{athlete_id}/results",
@@ -32,13 +51,15 @@ def get_athlete_results(athlete_id, season=None):
     )
 
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    save_raw_response(response, data, raw_results, output_path)
+    return data
 
 
-def get_season_results(athlete_id, season):
+def get_season_results(athlete_id, season, raw_results, output_path):
     # Recover from a server error in a year-specific request
     try:
-        return get_athlete_results(athlete_id, season)
+        return get_athlete_results(athlete_id, raw_results, output_path, season)
     
     except requests.HTTPError as error:
         if error.response is None or error.response.status_code < 500:
@@ -46,7 +67,7 @@ def get_season_results(athlete_id, season):
         print(f"Year request failed for {athlete_id}/{season}; trying all years.")
 
         # find_baseline filters the returned results to the requested season.
-        return get_athlete_results(athlete_id)
+        return get_athlete_results(athlete_id, raw_results, output_path)
 
 
 def build_athlete_dict(data, competition_id):
@@ -110,7 +131,7 @@ def find_baseline(results, season, cutoff_date):
     return best
 
 
-def fill_baselines(athlete_dict, cutoff_date):
+def fill_baselines(athlete_dict, cutoff_date, raw_results, output_path):
     # Try the card season, then the previous year only if no result qualifies.
     # cutoff_date applies to this competition batch. 
     # Use a separate call/config for another Olympics. Previous-year fallback considers that whole year.
@@ -122,13 +143,13 @@ def fill_baselines(athlete_dict, cutoff_date):
                 raise ValueError(f"Provide a matching cutoff for season {season}")
             requested_season = season
             try:
-                results = get_season_results(athlete_id, requested_season)
+                results = get_season_results(athlete_id, requested_season, raw_results, output_path)
                 baseline = find_baseline(results, requested_season, cutoff_date)
 
                 # Check AFTER all target-year performances, not per performance.
                 if baseline is None:
                     requested_season = str(int(season) - 1)
-                    results = get_season_results(athlete_id, requested_season)
+                    results = get_season_results(athlete_id, requested_season, raw_results, output_path)
                     baseline = find_baseline(
                         results, requested_season, f"{requested_season}-12-31"
                     )
@@ -151,9 +172,17 @@ def fill_baselines(athlete_dict, cutoff_date):
 
 
 def main():
-    data = get_competition_results(COMPETITION_ID, EVENT_ID)
+    output_path = Path(__file__).resolve().parent / "raw" / f"raw_results_{CUTOFF_DATE[:4]}.json"
+    # Retain responses already saved by a previous run.
+    if output_path.exists():
+        with output_path.open(encoding="utf-8") as file:
+            raw_results = json.load(file)
+    else:
+        raw_results = {}
+
+    data = get_competition_results(COMPETITION_ID, EVENT_ID, raw_results, output_path)
     athlete_dict = build_athlete_dict(data, COMPETITION_ID)
-    failed_requests = fill_baselines(athlete_dict, CUTOFF_DATE)
+    failed_requests = fill_baselines(athlete_dict, CUTOFF_DATE, raw_results, output_path)
     print(json.dumps(athlete_dict, indent=4))
 
     if failed_requests:
