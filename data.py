@@ -11,6 +11,7 @@ BASE_URL = "https://worldathletics.nimarion.de"
 COMPETITION_ID = 6999193
 EVENT_ID = 204593
 CUTOFF_DATE = "2012-08-09"
+REFRESH_DATA = False  # Set True to fetch fresh responses instead of using saved data.
 
 
 def save_raw_response(response, data, raw_results, output_path):
@@ -29,31 +30,35 @@ def save_raw_response(response, data, raw_results, output_path):
     temporary_path.replace(output_path)
 
 
-def get_competition_results(competition_id, event_id, raw_results, output_path):
-    response = requests.get(
-        f"{BASE_URL}/competitions/{competition_id}/results",
-        params={"eventId": event_id},
-        timeout=30,
-    )
+def get_saved_or_fetch(url, params, raw_results, output_path):
+    # Prepare the URL exactly as requests does, including query parameters.
+    request_url = requests.Request("GET", url, params=params).prepare().url
+    if not REFRESH_DATA and request_url in raw_results:
+        return raw_results[request_url]["data"]
 
+    response = requests.get(url, params=params, timeout=30)
     response.raise_for_status()
     data = response.json()
     save_raw_response(response, data, raw_results, output_path)
     return data
+
+
+def get_competition_results(competition_id, event_id, raw_results, output_path):
+    return get_saved_or_fetch(
+        f"{BASE_URL}/competitions/{competition_id}/results",
+        {"eventId": event_id}, raw_results, output_path,
+    )
 
 
 def get_athlete_results(athlete_id, raw_results, output_path, season=None):
-    # Leave out season to request all years (also used for recovery)
-    response = requests.get(
-        f"{BASE_URL}/athletes/{athlete_id}/results",
-        params={"year": season} if season is not None else {},
-        timeout=30,
+    # An all-years response can also satisfy a year-specific request.
+    url = f"{BASE_URL}/athletes/{athlete_id}/results"
+    if not REFRESH_DATA and url in raw_results:
+        return raw_results[url]["data"]
+    return get_saved_or_fetch(
+        url, {"year": season} if season is not None else {},
+        raw_results, output_path,
     )
-
-    response.raise_for_status()
-    data = response.json()
-    save_raw_response(response, data, raw_results, output_path)
-    return data
 
 
 def get_season_results(athlete_id, season, raw_results, output_path):
