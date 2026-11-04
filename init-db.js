@@ -15,12 +15,10 @@ db.prepare(`
 
 db.prepare(`
   CREATE TABLE IF NOT EXISTS athletes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
-    gender TEXT NOT NULL,
-    country_id INTEGER NOT NULL,
-    FOREIGN KEY (country_id) REFERENCES countries(id)
+    gender TEXT NOT NULL
   )
 `).run();
 
@@ -29,12 +27,12 @@ db.prepare(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     athlete_id INTEGER NOT NULL,
     year INTEGER NOT NULL,
-    sb_60m REAL,
-    sb_100m REAL,
-    sb_200m REAL,
-    sb_400m REAL,
+    country_id INTEGER NOT NULL,
+    baseline_100m REAL,
+    baseline_season INTEGER,
     FOREIGN KEY (athlete_id) REFERENCES athletes(id),
-    CONSTRAINT chk_at_least_one CHECK (sb_60m IS NOT NULL OR sb_100m IS NOT NULL OR sb_200m IS NOT NULL OR sb_400m IS NOT NULL)
+    FOREIGN KEY (country_id) REFERENCES countries(id),
+    UNIQUE(athlete_id, year)
   )
 `).run();
 
@@ -79,11 +77,11 @@ db.prepare(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     team_performance_id INTEGER NOT NULL,
     athlete_id INTEGER NOT NULL,
-    leg INTEGER NOT NULL,
+    leg INTEGER NOT NULL CHECK (leg BETWEEN 1 AND 4),
     FOREIGN KEY (athlete_id) REFERENCES athletes(id),
     FOREIGN KEY (team_performance_id) REFERENCES team_performance(id),
     UNIQUE(team_performance_id, athlete_id),
-    UNIQUE(team_performance_id, leg)
+    UNIQUE(team_performance_id, leg) 
   )
 `).run();
 
